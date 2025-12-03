@@ -1,5 +1,5 @@
 #include "funcao.h"
-#include "algoritmo.h"
+#include "algorimito.h"
 
 // Gera um vizinho: Troca um elemento selecionado por um nao selecionado
 void gerar_vizinho(p_solucao *atual, p_solucao *vizinho, p_dados *d)

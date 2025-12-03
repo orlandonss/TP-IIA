@@ -1,5 +1,5 @@
 #include "funcao.h"
-#include "algoritmo.h"
+#include "algorimito.h"
 
 // Deve criar um algoritmo.h com o prototipo:
 // void trepa_colinas(p_dados *d, p_solucao *melhor_global, int num_iteracoes);
