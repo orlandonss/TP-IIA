@@ -1,3 +1,3 @@
-build/./main.c.o: main.c funcao.h algorimito.h
+build/./main.c.o: main.c funcao.h algoritmo.h
 funcao.h:
-algorimito.h:
+algoritmo.h:
