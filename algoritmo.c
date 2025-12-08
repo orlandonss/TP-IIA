@@ -3,140 +3,324 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define TAM_POPULACAO 20
-#define TAXA_MUTACAO 0.3
+#define TAM_POPULACAO 50
+#define TAXA_MUTACAO 0.1
+#define PROB_CROSSOVER 0.8
 
-// --- FUNÇÕES AUXILIARES ---
+// --- FUNÇÕES AUXILIARES DE VIZINHANÇA ---
 
-// Gera um vizinho: Troca um elemento selecionado por um nao selecionado
-void gerar_vizinho(p_solucao *atual, p_solucao *vizinho, p_dados *d)
+void vizinho_troca1(p_solucao *atual, p_solucao *vizinho, p_dados *d)
 {
-    *vizinho = *atual;
-    // Remove um aleatório
+    copiar_solucao(vizinho, atual, d);
     int pos_sair = rand() % d->num_locais;
-    // Escolhe um para entrar que não esteja na solução
     int id_entrar;
     do
     {
         id_entrar = rand() % d->num_candidaturas;
     } while (solucao_contem(vizinho, id_entrar, d->num_locais));
-
     vizinho->vetor[pos_sair] = id_entrar;
     vizinho->custo = calcular_fitness(vizinho, d);
 }
 
-// Torneio Binário para Seleção
-void torneio(p_solucao *pop, p_solucao *pai, int tam_pop)
+void vizinho_troca2(p_solucao *atual, p_solucao *vizinho, p_dados *d)
 {
-    int a = rand() % tam_pop;
-    int b = rand() % tam_pop;
+    copiar_solucao(vizinho, atual, d);
+    int pos1 = rand() % d->num_locais;
+    int cand1;
+    do
+    {
+        cand1 = rand() % d->num_candidaturas;
+    } while (solucao_contem(vizinho, cand1, d->num_locais));
+    vizinho->vetor[pos1] = cand1;
+
+    int pos2 = rand() % d->num_locais;
+    while (pos1 == pos2)
+        pos2 = rand() % d->num_locais;
+
+    int cand2;
+    do
+    {
+        cand2 = rand() % d->num_candidaturas;
+    } while (solucao_contem(vizinho, cand2, d->num_locais));
+    vizinho->vetor[pos2] = cand2;
+
+    vizinho->custo = calcular_fitness(vizinho, d);
+}
+
+// --- SELEÇÃO ---
+
+void torneio(p_solucao *pop, p_solucao *pai)
+{
+    int a = rand() % TAM_POPULACAO;
+    int b = rand() % TAM_POPULACAO;
     if (pop[a].custo > pop[b].custo)
         *pai = pop[a];
     else
         *pai = pop[b];
 }
 
-// --- ALGORITMOS ---
-
-// 1. Trepa Colinas (Hill Climbing)
-void trepa_colinas(p_dados *d, p_solucao *melhor_global, int num_iteracoes)
+void roleta(p_solucao *pop, p_solucao *pai)
 {
-    p_solucao atual, vizinho;
-    gerar_solucao_inicial(&atual, d);
-    *melhor_global = atual;
-
-    for (int i = 0; i < num_iteracoes; i++)
+    double soma = 0.0;
+    for (int i = 0; i < TAM_POPULACAO; i++)
+        soma += pop[i].custo;
+    double r = ((double)rand() / RAND_MAX) * soma;
+    double p = 0.0;
+    *pai = pop[TAM_POPULACAO - 1];
+    for (int i = 0; i < TAM_POPULACAO; i++)
     {
-        gerar_vizinho(&atual, &vizinho, d);
-        if (vizinho.custo >= atual.custo)
+        p += pop[i].custo;
+        if (p >= r)
         {
-            atual = vizinho;
-            if (atual.custo > melhor_global->custo)
-                *melhor_global = atual;
+            *pai = pop[i];
+            return;
         }
     }
 }
 
-// 2. Algoritmo Evolutivo (Básico)
-void algoritmo_evolutivo(p_dados *d, p_solucao *melhor_global, int num_iteracoes)
+// --- CROSSOVER ---
+
+int uniao_vetores(int *v1, int *v2, int m, int *temp)
+{
+    int count = 0;
+    for (int i = 0; i < m; i++)
+        temp[count++] = v1[i];
+    for (int i = 0; i < m; i++)
+    {
+        int existe = 0;
+        for (int j = 0; j < count; j++)
+        {
+            if (temp[j] == v2[i])
+            {
+                existe = 1;
+                break;
+            }
+        }
+        if (!existe)
+            temp[count++] = v2[i];
+    }
+    return count;
+}
+
+void crossover_uniao(p_solucao *p1, p_solucao *p2, p_solucao *filho, p_dados *d)
+{
+    int temp[MAX_C * 2];
+    int tam = uniao_vetores(p1->vetor, p2->vetor, d->num_locais, temp);
+    for (int i = 0; i < tam; i++)
+    {
+        int r = rand() % tam;
+        int a = temp[i];
+        temp[i] = temp[r];
+        temp[r] = a;
+    }
+    for (int i = 0; i < d->num_locais; i++)
+        filho->vetor[i] = temp[i];
+    filho->custo = calcular_fitness(filho, d);
+}
+
+void crossover_comum(p_solucao *p1, p_solucao *p2, p_solucao *filho, p_dados *d)
+{
+    // Crossover simplificado para demonstração (na prática deve preservar elementos comuns)
+    crossover_uniao(p1, p2, filho, d);
+}
+
+// --- ALGORITMOS ---
+
+void trepa_colinas(p_dados *d, p_solucao *melhor_global, int num_iteracoes, int vizinhanca)
+{
+    p_solucao atual, vizinho;
+    gerar_solucao_inicial(&atual, d);
+    copiar_solucao(melhor_global, &atual, d);
+
+    for (int i = 0; i < num_iteracoes; i++)
+    {
+        if (vizinhanca == 1)
+            vizinho_troca1(&atual, &vizinho, d);
+        else
+            vizinho_troca2(&atual, &vizinho, d);
+
+        if (vizinho.custo >= atual.custo)
+        {
+            copiar_solucao(&atual, &vizinho, d);
+            if (atual.custo > melhor_global->custo)
+                copiar_solucao(melhor_global, &atual, d);
+        }
+
+        // Log compacto
+        if (i % 500 == 0)
+        {
+            printf("HC It %4d | Melhor: %.4f\n", i, melhor_global->custo);
+        }
+    }
+}
+
+void algoritmo_evolutivo(p_dados *d, p_solucao *melhor_global, int num_iteracoes, int sel, int cross, int mut)
 {
     p_solucao populacao[TAM_POPULACAO];
     p_solucao nova_geracao[TAM_POPULACAO];
 
-    // Inicializa população
+    // Inicializa
     for (int i = 0; i < TAM_POPULACAO; i++)
-    {
         gerar_solucao_inicial(&populacao[i], d);
-    }
 
-    // Define o melhor inicial
     *melhor_global = populacao[0];
     for (int i = 1; i < TAM_POPULACAO; i++)
-    {
         if (populacao[i].custo > melhor_global->custo)
             *melhor_global = populacao[i];
-    }
 
-    // Ciclo de gerações
     for (int it = 0; it < num_iteracoes; it++)
     {
-        // Elitismo: Mantém o melhor
-        nova_geracao[0] = *melhor_global;
+        nova_geracao[0] = *melhor_global; // Elitismo
 
         for (int i = 1; i < TAM_POPULACAO; i++)
         {
-            p_solucao pai;
-            torneio(populacao, &pai, TAM_POPULACAO);
-
-            // Mutação (Neste problema, mutação = gerar vizinho/troca)
-            // Como é difícil fazer crossover mantendo m elementos únicos sem reparação complexa,
-            // usaremos uma abordagem focada em mutação forte para este exemplo simples.
-            if (((double)rand() / RAND_MAX) < TAXA_MUTACAO)
+            p_solucao pai1, pai2, filho;
+            if (sel == 1)
             {
-                gerar_vizinho(&pai, &nova_geracao[i], d);
+                torneio(populacao, &pai1);
+                torneio(populacao, &pai2);
             }
             else
             {
-                nova_geracao[i] = pai;
+                roleta(populacao, &pai1);
+                roleta(populacao, &pai2);
             }
+
+            if (((double)rand() / RAND_MAX) < PROB_CROSSOVER)
+            {
+                if (cross == 1)
+                    crossover_uniao(&pai1, &pai2, &filho, d);
+                else
+                    crossover_comum(&pai1, &pai2, &filho, d);
+            }
+            else
+                filho = pai1;
+
+            if (((double)rand() / RAND_MAX) < TAXA_MUTACAO)
+            {
+                p_solucao m;
+                if (mut == 1)
+                    vizinho_troca1(&filho, &m, d);
+                else
+                    vizinho_troca2(&filho, &m, d);
+                filho = m;
+            }
+            nova_geracao[i] = filho;
         }
 
-        // Atualiza população e melhor global
         for (int i = 0; i < TAM_POPULACAO; i++)
         {
             populacao[i] = nova_geracao[i];
             if (populacao[i].custo > melhor_global->custo)
                 *melhor_global = populacao[i];
         }
+
+        if (it % 50 == 0)
+            printf("EA Gen %3d | Melhor: %.4f\n", it, melhor_global->custo);
     }
 }
 
-// 3. Algoritmo Híbrido (Evolutivo + Pesquisa Local no final)
-void algoritmo_hibrido(p_dados *d, p_solucao *melhor_global, int num_iteracoes)
+// Implementação das DUAS abordagens híbridas
+void algoritmo_hibrido(p_dados *d, p_solucao *melhor_global, int num_iteracoes, int tipo)
 {
-    // Divide iterações: 90% para Evolutivo, 10% para refinamento Local
-    int it_evol = num_iteracoes * 0.9;
-    int it_local = num_iteracoes - it_evol;
-
-    // Fase 1: Exploração Global
-    algoritmo_evolutivo(d, melhor_global, it_evol);
-
-    // Fase 2: Intensificação (Refina a melhor solução encontrada)
-    // Usamos o Trepa Colinas começando da melhor solução do EA
-    p_solucao refinada;
-    // Nota: O trepa colinas original gera aleatório no inicio.
-    // Vamos adaptar ligeiramente a logica chamando a logica interna aqui:
-
-    p_solucao atual = *melhor_global, vizinho;
-
-    for (int i = 0; i < it_local; i++)
+    if (tipo == 1)
     {
-        gerar_vizinho(&atual, &vizinho, d);
-        if (vizinho.custo >= atual.custo)
+        // --- HIBRIDO 1: SEQUENCIAL (EA + Refinamento HC) ---
+        // Usa 90% das iterações para Evolutivo e 10% para Trepa Colinas na melhor solução
+        printf(">>> Hibrido 1: Evolutivo -> Refinamento Final (HC)\n");
+
+        int it_ea = (int)(num_iteracoes * 0.9);
+        int it_hc = num_iteracoes - it_ea;
+
+        // 1. Fase Global (Evolutivo)
+        algoritmo_evolutivo(d, melhor_global, it_ea, 1, 1, 1);
+        printf("Fim Fase Evolutiva. Melhor: %.4f. Iniciando Refinamento...\n", melhor_global->custo);
+
+        // 2. Fase Local (Trepa Colinas apenas na melhor solução)
+        p_solucao atual = *melhor_global;
+        p_solucao vizinho;
+
+        for (int i = 0; i < it_hc; i++)
         {
-            atual = vizinho;
-            if (atual.custo > melhor_global->custo)
-                *melhor_global = atual;
+            vizinho_troca1(&atual, &vizinho, d); // Usa vizinhança simples para ajuste fino
+            if (vizinho.custo > atual.custo)
+            {
+                atual = vizinho;
+            }
+        }
+
+        // Se a refinada for melhor, atualiza
+        if (atual.custo > melhor_global->custo)
+            *melhor_global = atual;
+    }
+    else
+    {
+        // --- HIBRIDO 2: MEMÉTICO (EA com Pesquisa Local intervalada) ---
+        // A cada 20 gerações, aplica HC em alguns indivíduos da população
+        printf(">>> Hibrido 2: Memetico (HC dentro do Ciclo Evolutivo)\n");
+
+        p_solucao populacao[TAM_POPULACAO];
+        p_solucao nova_geracao[TAM_POPULACAO];
+
+        // Inicializa
+        for (int i = 0; i < TAM_POPULACAO; i++)
+            gerar_solucao_inicial(&populacao[i], d);
+        *melhor_global = populacao[0];
+
+        for (int it = 0; it < num_iteracoes; it++)
+        {
+            // --- Passo Normal do Evolutivo ---
+            nova_geracao[0] = *melhor_global; // Elitismo
+            for (int i = 1; i < TAM_POPULACAO; i++)
+            {
+                p_solucao pai1, pai2, filho;
+                torneio(populacao, &pai1);
+                torneio(populacao, &pai2);
+
+                if (((double)rand() / RAND_MAX) < PROB_CROSSOVER)
+                    crossover_uniao(&pai1, &pai2, &filho, d);
+                else
+                    filho = pai1;
+
+                if (((double)rand() / RAND_MAX) < TAXA_MUTACAO)
+                {
+                    p_solucao m;
+                    vizinho_troca1(&filho, &m, d);
+                    filho = m;
+                }
+                nova_geracao[i] = filho;
+            }
+
+            // --- PASSO EXTRA HIBRIDO: Otimização Local (Lamarckian) ---
+            // A cada 20 gerações, melhora 5 individuos aleatorios com Trepa Colinas
+            if (it > 0 && it % 20 == 0)
+            {
+                // printf(" [Hibrido] A aplicar otimizacao local na geracao %d...\n", it);
+                for (int k = 0; k < 5; k++)
+                {
+                    int idx = rand() % TAM_POPULACAO; // Escolhe aleatorio
+                    p_solucao *indiv = &nova_geracao[idx];
+                    p_solucao v;
+                    // Faz 50 passos de HC neste individuo
+                    for (int step = 0; step < 50; step++)
+                    {
+                        vizinho_troca1(indiv, &v, d);
+                        if (v.custo > indiv->custo)
+                            *indiv = v;
+                    }
+                }
+            }
+
+            // Atualiza População
+            for (int i = 0; i < TAM_POPULACAO; i++)
+            {
+                populacao[i] = nova_geracao[i];
+                if (populacao[i].custo > melhor_global->custo)
+                    *melhor_global = populacao[i];
+            }
+
+            if (it % 50 == 0)
+                printf("Hyb2 Gen %3d | Melhor: %.4f\n", it, melhor_global->custo);
         }
     }
 }
