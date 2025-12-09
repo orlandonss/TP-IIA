@@ -26,6 +26,7 @@ void carregar_dados(char *nome_ficheiro, p_dados *d)
     // Leitura das distancias
     while (fscanf(f, "%s %s %lf", buf1, buf2, &dist) == 3)
     {
+        // Converte "e1" para índice 0, "e2" para 1...
         int i = (buf1[0] == 'e' || buf1[0] == 'E') ? atoi(buf1 + 1) - 1 : atoi(buf1) - 1;
         int j = (buf2[0] == 'e' || buf2[0] == 'E') ? atoi(buf2 + 1) - 1 : atoi(buf2) - 1;
 
@@ -49,7 +50,6 @@ int solucao_contem(p_solucao *s, int id_local, int m)
 void gerar_solucao_inicial(p_solucao *s, p_dados *d)
 {
     int selecionados = 0;
-    // Inicializa vetor com -1
     for (int i = 0; i < d->num_locais; i++)
         s->vetor[i] = -1;
 
@@ -95,26 +95,38 @@ double calcular_fitness(p_solucao *s, p_dados *d)
     return (1.0 / m) * soma;
 }
 
+// Mostra a solução final formatada: {e1, e2, e4} (sem ordenar)
 void mostrar_solucao(p_solucao *s, p_dados *d)
 {
-    printf("Fitness: %.4f | Locais: ", s->custo);
+    printf("Fitness: %.4f | Solucao: {", s->custo);
     for (int i = 0; i < d->num_locais; i++)
-        printf("%d ", s->vetor[i] + 1);
-    printf("\n");
+    {
+        // Adiciona o prefixo 'e' e soma 1 ao índice
+        printf("e%d", s->vetor[i] + 1);
+
+        // Coloca vírgula se não for o último
+        if (i < d->num_locais - 1)
+            printf(", ");
+    }
+    printf("}\n");
 }
 
-// Funcao para log (output compacto)
+// Log compacto também formatado
 void escrever_solucao(p_solucao *s, p_dados *d)
 {
-    printf("[Fit: %.2f] Locais: {", s->custo);
-    // Mostra apenas alguns se forem muitos, para nao poluir o log
+    printf("[Fit: %.2f] {", s->custo);
+
     int max_print = (d->num_locais > 10) ? 10 : d->num_locais;
 
     for (int i = 0; i < max_print; i++)
-        printf("%d%s", s->vetor[i] + 1, (i < max_print - 1) ? "," : "");
+    {
+        printf("e%d", s->vetor[i] + 1);
+        if (i < max_print - 1)
+            printf(", ");
+    }
 
     if (d->num_locais > max_print)
-        printf(",...");
+        printf(", ...");
     printf("}");
 }
 

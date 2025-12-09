@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define TAM_POPULACAO 50
-#define TAXA_MUTACAO 0.1
-#define PROB_CROSSOVER 0.8
+#define TAM_POPULACAO 100
+#define TAXA_MUTACAO 0.01
+#define PROB_CROSSOVER 0.7
 
 // --- FUNÇÕES AUXILIARES DE VIZINHANÇA ---
 
@@ -102,26 +102,73 @@ int uniao_vetores(int *v1, int *v2, int m, int *temp)
     return count;
 }
 
+// Crossover 1: União Aleatória (Junta tudo e escolhe m aleatorios)
 void crossover_uniao(p_solucao *p1, p_solucao *p2, p_solucao *filho, p_dados *d)
 {
-    int temp[MAX_C * 2];
-    int tam = uniao_vetores(p1->vetor, p2->vetor, d->num_locais, temp);
-    for (int i = 0; i < tam; i++)
+    int temp[MAX_C * 2]; // Para segurar a uniao
+    int tamanho_uniao = uniao_vetores(p1->vetor, p2->vetor, d->num_locais, temp);
+
+    // Embaralha temp
+    for (int i = 0; i < tamanho_uniao; i++)
     {
-        int r = rand() % tam;
-        int a = temp[i];
+        int r = rand() % tamanho_uniao;
+        int aux = temp[i];
         temp[i] = temp[r];
-        temp[r] = a;
+        temp[r] = aux;
     }
+
+    // Pega os primeiros m
     for (int i = 0; i < d->num_locais; i++)
         filho->vetor[i] = temp[i];
+
     filho->custo = calcular_fitness(filho, d);
 }
 
+// Crossover 2: Preserva Comum (Mantem os iguais, preenche o resto aleatorio da uniao)
 void crossover_comum(p_solucao *p1, p_solucao *p2, p_solucao *filho, p_dados *d)
 {
-    // Crossover simplificado para demonstração (na prática deve preservar elementos comuns)
-    crossover_uniao(p1, p2, filho, d);
+    int selecionados = 0;
+    int temp_uniao[MAX_C * 2];
+    int count_u = 0;
+
+    // 1. Identificar comuns e adicionar ao filho
+    for (int i = 0; i < d->num_locais; i++)
+    {
+        for (int j = 0; j < d->num_locais; j++)
+        {
+            if (p1->vetor[i] == p2->vetor[j])
+            {
+                filho->vetor[selecionados++] = p1->vetor[i];
+                break;
+            }
+        }
+    }
+
+    // 2. Criar lista de candidatos (Uniao - Comuns) para preencher o resto
+    count_u = uniao_vetores(p1->vetor, p2->vetor, d->num_locais, temp_uniao);
+
+    // 3. Preencher o resto
+
+    while (selecionados < d->num_locais)
+    {
+        int idx_temp = rand() % count_u;
+        int cand = temp_uniao[idx_temp];
+        // Verifica se ja esta no filho (ja foi adicionado como comum)
+        int existe = 0;
+        for (int k = 0; k < selecionados; k++)
+        {
+            if (filho->vetor[k] == cand)
+            {
+                existe = 1;
+                break;
+            }
+        }
+        if (!existe)
+        {
+            filho->vetor[selecionados++] = cand;
+        }
+    }
+    filho->custo = calcular_fitness(filho, d);
 }
 
 // --- ALGORITMOS ---

@@ -29,7 +29,7 @@ void carregar_dados(char *nome_ficheiro, p_dados *d);
 void gerar_solucao_inicial(p_solucao *s, p_dados *d);
 double calcular_fitness(p_solucao *s, p_dados *d);
 void mostrar_solucao(p_solucao *s, p_dados *d);
-void escrever_solucao(p_solucao *s, p_dados *d); // Nova funcao para log
+void escrever_solucao(p_solucao *s, p_dados *d);
 int solucao_contem(p_solucao *s, int id_local, int m);
 void copiar_solucao(p_solucao *dest, p_solucao *src, p_dados *d);
 
