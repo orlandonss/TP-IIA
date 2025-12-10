@@ -124,14 +124,11 @@ int main(int argc, char *argv[])
 
     double mbf_final = mbf / runs;
 
-    if (!modo_silencioso)
-    {
-        printf("\n=========================================\n");
-        printf("MBF: %.4f | Melhor Global: %.4f\n", mbf_final, melhor_absoluta.custo);
-        printf("Solucao Global: ");
-        mostrar_solucao(&melhor_absoluta, &dados);
-        printf("=========================================\n");
-    }
+    printf("\n=========================================\n");
+    printf("MBF: %.4f | Melhor Global: %.4f\n", mbf_final, melhor_absoluta.custo);
+    printf("Solucao Global: ");
+    mostrar_solucao(&melhor_absoluta, &dados);
+    printf("=========================================\n");
 
     // --- GRAVAR NO CSV (COM NOMES EXPLÍCITOS) ---
     FILE *f_out = fopen("resumo_resultados.csv", "a");

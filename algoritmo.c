@@ -6,7 +6,6 @@
 #define TAM_POPULACAO 100
 #define TAXA_MUTACAO 0.01
 #define PROB_CROSSOVER 0.7
-
 // --- FUNÇÕES AUXILIARES DE VIZINHANÇA ---
 
 void vizinho_troca1(p_solucao *atual, p_solucao *vizinho, p_dados *d)
@@ -194,7 +193,7 @@ void trepa_colinas(p_dados *d, p_solucao *melhor_global, int num_iteracoes, int 
         }
 
         // Log compacto
-        if (i % 500 == 0)
+        if (i % 50 == 0)
         {
             printf("HC It %4d | Melhor: %.4f\n", i, melhor_global->custo);
         }
@@ -217,11 +216,14 @@ void algoritmo_evolutivo(p_dados *d, p_solucao *melhor_global, int num_iteracoes
 
     for (int it = 0; it < num_iteracoes; it++)
     {
-        nova_geracao[0] = *melhor_global; // Elitismo
+        nova_geracao[0] = *melhor_global; // Elitismo (ocupa índice 0)
 
-        for (int i = 1; i < TAM_POPULACAO; i++)
+        // Ciclo avança de 2 em 2 para gerar pares de filhos
+        for (int i = 1; i < TAM_POPULACAO; i += 2)
         {
-            p_solucao pai1, pai2, filho;
+            p_solucao pai1, pai2, filho1, filho2;
+
+            // 1. Seleção (2 Pais)
             if (sel == 1)
             {
                 torneio(populacao, &pai1);
@@ -233,28 +235,60 @@ void algoritmo_evolutivo(p_dados *d, p_solucao *melhor_global, int num_iteracoes
                 roleta(populacao, &pai2);
             }
 
+            // 2. Crossover (Gera 2 Filhos)
             if (((double)rand() / RAND_MAX) < PROB_CROSSOVER)
             {
                 if (cross == 1)
-                    crossover_uniao(&pai1, &pai2, &filho, d);
+                {
+                    crossover_uniao(&pai1, &pai2, &filho1, d);
+                    crossover_uniao(&pai1, &pai2, &filho2, d); // 2º filho (aleatoriedade diferente)
+                }
                 else
-                    crossover_comum(&pai1, &pai2, &filho, d);
+                {
+                    crossover_comum(&pai1, &pai2, &filho1, d);
+                    crossover_comum(&pai1, &pai2, &filho2, d);
+                }
             }
             else
-                filho = pai1;
+            {
+                // Sem crossover, os filhos são clones dos pais
+                filho1 = pai1;
+                filho2 = pai2;
+            }
 
+            // 3. Mutação (Independente para cada filho)
+            // Filho 1
             if (((double)rand() / RAND_MAX) < TAXA_MUTACAO)
             {
                 p_solucao m;
                 if (mut == 1)
-                    vizinho_troca1(&filho, &m, d);
+                    vizinho_troca1(&filho1, &m, d);
                 else
-                    vizinho_troca2(&filho, &m, d);
-                filho = m;
+                    vizinho_troca2(&filho1, &m, d);
+                filho1 = m;
             }
-            nova_geracao[i] = filho;
+
+            // Filho 2
+            if (((double)rand() / RAND_MAX) < TAXA_MUTACAO)
+            {
+                p_solucao m;
+                if (mut == 1)
+                    vizinho_troca1(&filho2, &m, d);
+                else
+                    vizinho_troca2(&filho2, &m, d);
+                filho2 = m;
+            }
+
+            // 4. Inserção na nova geração
+            nova_geracao[i] = filho1;
+
+            // VERIFICAÇÃO DE SEGURANÇA: Garante que não escreve fora do array
+            // Se i=99 e TAM=100, i+1=100 (invalido). Esta verificação impede o crash.
+            if (i + 1 < TAM_POPULACAO)
+                nova_geracao[i + 1] = filho2;
         }
 
+        // Atualiza população
         for (int i = 0; i < TAM_POPULACAO; i++)
         {
             populacao[i] = nova_geracao[i];
@@ -262,8 +296,9 @@ void algoritmo_evolutivo(p_dados *d, p_solucao *melhor_global, int num_iteracoes
                 *melhor_global = populacao[i];
         }
 
+        // Log periódico
         if (it % 50 == 0)
-            printf("EA Gen %3d | Melhor: %.4f\n", it, melhor_global->custo);
+            printf("EA Gen %d | Melhor: %.4f\n", it, melhor_global->custo);
     }
 }
 
