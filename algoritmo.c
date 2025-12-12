@@ -338,7 +338,7 @@ void algoritmo_hibrido(p_dados *d, p_solucao *melhor_global, int num_iteracoes, 
     else
     {
         // --- HIBRIDO 2: MEMÉTICO (EA com Pesquisa Local intervalada) ---
-        // A cada 20 gerações, aplica HC em alguns indivíduos da população
+        // A cada 50 gerações, aplica HC em 20 indivíduos da população
         printf(">>> Hibrido 2: Memetico (HC dentro do Ciclo Evolutivo)\n");
 
         p_solucao populacao[TAM_POPULACAO];
@@ -355,36 +355,48 @@ void algoritmo_hibrido(p_dados *d, p_solucao *melhor_global, int num_iteracoes, 
             nova_geracao[0] = *melhor_global; // Elitismo
             for (int i = 1; i < TAM_POPULACAO; i++)
             {
-                p_solucao pai1, pai2, filho;
+                p_solucao pai1, pai2, filho1, filho2;
                 torneio(populacao, &pai1);
                 torneio(populacao, &pai2);
 
                 if (((double)rand() / RAND_MAX) < PROB_CROSSOVER)
-                    crossover_uniao(&pai1, &pai2, &filho, d);
+                    crossover_uniao(&pai1, &pai2, &filho1, d);
                 else
-                    filho = pai1;
+                    filho1 = pai1;
+                if (((double)rand() / RAND_MAX) < PROB_CROSSOVER)
+                    crossover_uniao(&pai1, &pai2, &filho2, d);
+                else
+                    filho1 = pai2;
 
                 if (((double)rand() / RAND_MAX) < TAXA_MUTACAO)
                 {
                     p_solucao m;
-                    vizinho_troca1(&filho, &m, d);
-                    filho = m;
+                    vizinho_troca1(&filho1, &m, d);
+                    filho1 = m;
                 }
-                nova_geracao[i] = filho;
+                if (((double)rand() / RAND_MAX) < TAXA_MUTACAO)
+                {
+                    p_solucao m;
+                    vizinho_troca1(&filho2, &m, d);
+                    filho2 = m;
+                }
+                nova_geracao[i] = filho1;
+                if (i + 1 < TAM_POPULACAO)
+                    nova_geracao[i + 1] = filho2;
             }
 
             // --- PASSO EXTRA HIBRIDO: Otimização Local (Lamarckian) ---
-            // A cada 20 gerações, melhora 5 individuos aleatorios com Trepa Colinas
-            if (it > 0 && it % 20 == 0)
+            // A cada 50 gerações, melhora 20 individuos aleatorios com Trepa Colinas
+            if (it > 0 && it % 50 == 0)
             {
                 // printf(" [Hibrido] A aplicar otimizacao local na geracao %d...\n", it);
-                for (int k = 0; k < 5; k++)
+                for (int k = 0; k < 20; k++)
                 {
                     int idx = rand() % TAM_POPULACAO; // Escolhe aleatorio
                     p_solucao *indiv = &nova_geracao[idx];
                     p_solucao v;
-                    // Faz 50 passos de HC neste individuo
-                    for (int step = 0; step < 50; step++)
+                    // Faz 200 passos de HC neste individuo
+                    for (int step = 0; step < 200; step++)
                     {
                         vizinho_troca1(indiv, &v, d);
                         if (v.custo > indiv->custo)
